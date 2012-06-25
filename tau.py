@@ -11,9 +11,7 @@
 
 Usage:
   tau (-h | --help | --version)
-  tau server start [--port=<port>]
-  tau server stop
-      [--host=<host>] [--port=<port>]
+  tau server [--port=<port>]
   tau set <key=value> ...
       [--host=<host>] [--port=<port>]
   tau get <key> ... [--timestamps] [--period=<seconds>]
@@ -183,10 +181,8 @@ class Tau(object):
 if __name__ == '__main__':
     args = docopt(__doc__, version='zero')
     tau = TauClient(host=args['--host'], port=int(args['--port']))
-    if args['server'] and args['start']:
+    if args['server']:
         TauServer(port=int(args['--port']))
-    elif args['server'] and args['stop']:
-        tau.stop()
     elif args['set']:
         tau.set(dict(kv.split('=') for kv in args['<key=value>']))
     elif args['get']:
