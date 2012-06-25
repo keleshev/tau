@@ -36,7 +36,7 @@ from docopt import docopt
 
 class TauProtocol(object):
 
-    def __init__(self, host='localhost', port=1042, client=None):
+    def __init__(self, host='localhost', port=6283, client=None):
         self._host = host
         self._port = port
         self._client = client
@@ -75,7 +75,7 @@ class TauProtocol(object):
 
 class TauServer(object):
 
-    def __init__(self, port=1042, lifetime=1):
+    def __init__(self, port=6283, lifetime=1):
         try:
             self.tau = Tau(lifetime)
             self.server = socket.socket()
