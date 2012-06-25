@@ -49,9 +49,9 @@ class TauProtocol(object):
 
     def send(self, message):
         def encode_datetime(obj):
-            if isinstance(obj, datetime):
-                return {'__datetime__': str(obj)}
-            raise TypeError(repr(obj) + " is not JSON serializable")
+            if type(obj) is datetime:
+                return {'__datetime__': obj.isoformat()}
+            raise TypeError("%r is not JSON serializable" % obj)
         #assert '\n' not in json.dumps(message)
         self._client.send(json.dumps(message, default=encode_datetime) + '\n')
 
@@ -59,7 +59,7 @@ class TauProtocol(object):
         def decode_datetime(obj):
             if '__datetime__' in obj:
                 return datetime.strptime(obj['__datetime__'],
-                                         '%Y-%m-%d %H:%M:%S.%f')
+                                         '%Y-%m-%dT%H:%M:%S.%f')
             return obj
         message = ''
         while True:
