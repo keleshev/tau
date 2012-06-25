@@ -182,7 +182,10 @@ if __name__ == '__main__':
     args = docopt(__doc__, version='zero')
     tau = TauClient(host=args['--host'], port=int(args['--port']))
     if args['server']:
-        TauServer(port=int(args['--port']))
+        try:
+            TauServer(port=int(args['--port']))
+        except KeyboardInterrupt:
+            pass
     elif args['set']:
         tau.set(dict(kv.split('=') for kv in args['<key=value>']))
     elif args['get']:
