@@ -101,21 +101,21 @@ class TauServer(object):
 class TauClient(object):
 
     def __init__(self, host='localhost', port=6283):
-        self.host = host
-        self.port = port
+        self._host = host
+        self._port = port
 
     def set(self, *arg, **kw):
         data = arg[0] if arg else kw
-        with TauProtocol(self.host, self.port) as protocol:
+        with TauProtocol(self._host, self._port) as protocol:
             protocol.send(['set', data])
 
     def get(self, *arg, **kw):
-        with TauProtocol(self.host, self.port) as protocol:
+        with TauProtocol(self._host, self._port) as protocol:
             protocol.send(['get', [arg, kw]])
             return protocol.receive()
 
     def clear(self):
-        with TauProtocol(self.host, self.port) as protocol:
+        with TauProtocol(self._host, self._port) as protocol:
             protocol.send(['clear', None])
 
 
