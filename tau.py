@@ -27,7 +27,7 @@ Options:
 import socket
 import json
 from fnmatch import fnmatchcase
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from docopt import docopt
 
@@ -73,9 +73,9 @@ class TauProtocol(object):
 
 class TauServer(object):
 
-    def __init__(self, host='localhost', port=6283, lifetime=1):
+    def __init__(self, host='localhost', port=6283, cache_seconds=1):
         try:
-            self.tau = Tau(lifetime)
+            self.tau = Tau(cache_seconds)
             self.server = socket.socket()
             #self.server.bind((socket.gethostname(), port))
             self.server.bind((host, port))
@@ -119,8 +119,8 @@ class TauClient(object):
 
 class Tau(object):
 
-    def __init__(self, lifetime=1):
-        self._lifetime = lifetime
+    def __init__(self, cache_seconds=1):
+        self._cache_seconds = cache_seconds
         self._state = {}
 
     def set(self, *arg, **kw):
@@ -129,38 +129,50 @@ class Tau(object):
             if key not in self._state:
                 self._state[key] = []
             self._state[key].append([datetime.now(), value])
+        self._state = self._truncate(self._state, self._cache_seconds)
 
-    def get(self, *arg, **kw):
-        self._state = self._truncate(self._state, self._lifetime)
-        match = self._get_match(arg)
-        if kw.get('period'):
-            match = self._truncate(match, kw['period'])
+    def get(self, *arguments, **options):
+        self._state = self._truncate(self._state, self._cache_seconds)
+        signals = self._matching_signals(*arguments)
 
-        if kw.get('period') and kw.get('timestamps'):
-            transform = lambda x: x if x else []
-        elif kw.get('period'):
-            transform = lambda x: list(zip(*x)[1]) if x else []
-        elif kw.get('timestamps'):
-            transform = lambda x: x[-1] if x else []
-        else:
-            transform = lambda x: x[-1][1] if x else None
+        if options.get('period'):
+            end = datetime.now()
+            start = end - timedelta(seconds=options['period'])
+            match = self._get(signals, start, end)
+            if not options.get('timestamps'):
+                match = dict((k, [i[1] for i in v]) for k, v in match.items())
+        else:  # latest value
+            match = self._get(signals)
+            if not options.get('timestamps'):
+                match = dict((k, v[1] if v else None) for k, v in match.items())
 
-        match = dict((key, transform(val)) for key, val in match.items())
-
-        if len(arg) == 1 and not self._is_pattern(arg[0]):
-            return match.get(arg[0])
+        if len(arguments) == 1 and not self._is_pattern(arguments[0]):
+            return match[arguments[0]]
         return match
 
-    def _get_match(self, argument):
-        patterns = [a for a in argument if self._is_pattern(a)]
-        keys = [a for a in argument if not self._is_pattern(a)]
-        patterns_match = {}
-        for p in patterns:
-            for k in self._state.keys():
-                if fnmatchcase(k, p):
-                    patterns_match[k] = self._state.get(k)
-        keys_match = dict((key, self._state.get(key)) for key in keys)
-        return dict(patterns_match.items() + keys_match.items())
+    def _get(self, signals, start=None, end=None):
+        if not start:
+            return dict((s, self._get_latest(s)) for s in signals)
+        return dict((s, self._get_period(s, start, end)) for s in signals)
+
+    def _get_period(self, signal, start, end):
+        if signal not in self._state or self._state[signal] == []:
+            return []
+        return [kv for kv in self._state[signal] if start <= kv[0] <= end]
+
+    def _get_latest(self, signal):
+        if signal not in self._state or self._state[signal] == []:
+            return None
+        return self._state[signal][-1]
+
+    def signals(self):
+        return set(self._state)
+
+    def _matching_signals(self, *arg):
+        patterns = [a for a in arg if self._is_pattern(a)]
+        signals = [a for a in arg if not self._is_pattern(a)]
+        return set([s for p in patterns for s in self.signals()
+                    if fnmatchcase(s, p)] + signals)
 
     @staticmethod
     def _truncate(state, period):

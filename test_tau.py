@@ -1,10 +1,10 @@
 from time import sleep
 from datetime import datetime
-from tau import TauClient
+from tau import Tau
 
 
 def pytest_funcarg__tau(request):
-    tau = TauClient()
+    tau = Tau()
     tau.clear()
     return tau
 
@@ -77,6 +77,37 @@ def test_when_all_values_are_discarded_get_returns_none(tau):
     tau.set(a=0, b=1, foo=-1)
     sleep(1)
     assert tau.get('?') == {'a': None, 'b': None}
+
+
+# Signals
+
+
+def test_signals(tau):
+    tau.set(a=0, b=1, foo=-1)
+    tau.set(a=5, b=6, foo=-2)
+    tau.set(a=8, b=9, foo=-3)
+    assert tau.signals() == set(['a', 'b', 'foo'])
+
+
+def test_matching_signals(tau):
+    tau.set(a=0, b=1, foo=-1)
+    tau.set(a=5, b=6, foo=-2)
+    tau.set(a=8, b=9, foo=-3)
+    assert tau._matching_signals('?') == set(['a', 'b'])
+    assert tau._matching_signals('a', '???') == set(['a', 'foo'])
+
+
+#def test_internal_get(tau):
+#    tau.set(a=5, b=6, foo=-2)
+#    tau.set(a=8, b=9, foo=-3)
+#    d = tau._get(['a'], =1)
+#    assert d.keys() == ['a']
+#    [[t1, n], [t2, m]] = d['a']
+#    assert type(t1) == type(t2) == datetime
+#    assert n == 5 and m == 8
+#    assert tau._get(['x'], period=1) == {'x': []}
+
+
 
 
 # Period
