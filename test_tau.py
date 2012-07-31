@@ -1,5 +1,5 @@
 from time import sleep
-from datetime import datetime
+from datetime import datetime, timedelta
 from tau import Tau
 
 
@@ -52,6 +52,11 @@ def test_get_wilecard(tau):
 def test_get_pattern(tau):
     tau.set(meanSpeed=123, meanPower=456, foo=False)
     assert tau.get('mean*') == {'meanSpeed': 123, 'meanPower': 456}
+
+
+def test_get_pattern_that_matches_nothing(tau):
+    tau.set(foo=123, bar=True)
+    assert tau.get('?') == {}
 
 
 def test_get_complex_pattern(tau):
@@ -140,6 +145,20 @@ def test_get_period_truncates(tau):
     tau.set(a=5, b=6, foo=-2)
     tau.set(a=8, b=9, foo=-3)
     assert tau.get('?', period=0.5) == {'a': [5, 8], 'b': [6, 9]}
+
+
+# Start/end
+
+def test_get_start_end(tau):
+    tau.set(a=0, b=1, foo=-1)
+    sleep(0.5)
+    tau.set(a=5, b=6, foo=-2)
+    sleep(0.5)
+    tau.set(a=8, b=9, foo=-3)
+    now = datetime.now()
+    start = now - timedelta(seconds=1)
+    end = now - timedelta(seconds=0.5)
+    assert tau.get('?', start=start, end=end) == {'a': [5], 'b': [6]}
 
 
 # Timestamps

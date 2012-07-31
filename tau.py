@@ -135,9 +135,13 @@ class Tau(object):
         self._state = self._truncate(self._state, self._cache_seconds)
         signals = self._matching_signals(*arguments)
 
-        if options.get('period'):
-            end = datetime.now()
-            start = end - timedelta(seconds=options['period'])
+        if 'period' in options or 'start' in options and 'end' in options:
+            if 'period' in options:
+                end = datetime.now()
+                start = end - timedelta(seconds=options['period'])
+            else:
+                end = options['end']
+                start = options['start']
             match = dict((s, self._get_period(s, start, end)) for s in signals)
             if not options.get('timestamps'):
                 match = dict((k, [i[1] for i in v]) for k, v in match.items())
