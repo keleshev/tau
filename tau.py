@@ -126,9 +126,12 @@ class Tau(object):
     def set(self, *arg, **kw):
         keyvalues = arg[0] if arg else kw
         for key, value in keyvalues.items():
-            if key not in self._state:
-                self._state[key] = []
-            self._state[key].append([datetime.now(), value])
+            self._set(key, value)
+
+    def _set(self, key, value):
+        if key not in self._state:
+            self._state[key] = []
+        self._state[key].append([datetime.now(), value])
         self._state = self._truncate(self._state, self._cache_seconds)
 
     def get(self, *arguments, **options):
@@ -142,11 +145,11 @@ class Tau(object):
             else:
                 end = options['end']
                 start = options['start']
-            match = dict((s, self._get_period(s, start, end)) for s in signals)
+            match = dict((s, self._get(s, start, end)) for s in signals)
             if not options.get('timestamps'):
                 match = dict((k, [i[1] for i in v]) for k, v in match.items())
         else:  # latest value
-            match = dict((s, self._get_latest(s)) for s in signals)
+            match = dict((s, self._get(s)) for s in signals)
             if not options.get('timestamps'):
                 match = dict((k, v[1] if v else None) for k, v in match.items())
 
@@ -154,14 +157,11 @@ class Tau(object):
             return match[arguments[0]]
         return match
 
-    def _get_period(self, signal, start, end):
+    def _get(self, signal, start=None, end=None):
         if signal not in self._state or self._state[signal] == []:
-            return []
-        return [kv for kv in self._state[signal] if start <= kv[0] <= end]
-
-    def _get_latest(self, signal):
-        if signal not in self._state or self._state[signal] == []:
-            return None
+            return [] if start and end else None
+        if start and end:
+            return [kv for kv in self._state[signal] if start <= kv[0] <= end]
         return self._state[signal][-1]
 
     def signals(self):
@@ -187,6 +187,24 @@ class Tau(object):
 
     def clear(self):
         self._state = {}
+
+
+class CSVBackend:
+
+    def __init__(self):
+        pass
+
+    def set(self, signal, value):
+        pass
+
+    def get(self, signal, start=None, end=None):
+        pass
+
+    def signals(self):
+        pass
+
+    def clear(self):
+        pass
 
 
 if __name__ == '__main__':
