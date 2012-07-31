@@ -1,10 +1,12 @@
 from time import sleep
 from datetime import datetime, timedelta
-from tau import TauClient
+from tau import Tau, TauClient, MemoryBackend, CSVBackend
 
 
 def pytest_funcarg__tau(request):
     tau = TauClient()
+    tau = Tau(MemoryBackend(1))
+    tau = Tau(CSVBackend('./tmp/'))
     tau.clear()
     return tau
 

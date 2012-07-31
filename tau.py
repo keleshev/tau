@@ -25,6 +25,7 @@ Options:
 
 """
 import socket
+import os
 import json
 from fnmatch import fnmatchcase
 from datetime import datetime, timedelta
@@ -157,6 +158,44 @@ class MemoryBackend(object):
 
     def clear(self):
         self._state = {}
+
+
+class CSVBackend(object):
+
+    def __init__(self, path='./'):
+        self._path = path
+
+    def set(self, key, value):
+        with open(self._path + key + '.csv', 'a') as f:
+            f.write('%s,%s\n' % (datetime.now().isoformat(), json.dumps(value)))
+
+    def get(self, signal, start=None, end=None):
+        if signal not in self.signals():
+            return [] if start and end else None
+        if start and end:
+            result = []
+            with open(self._path + signal + '.csv') as f:
+                for line in f.xreadlines():
+                    t, _, v = line.partition(',')
+                    t = datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
+                    if start <= t <= end:
+                        v = json.loads(v.strip())
+                        result.append([t, v])
+            return result
+        with open(self._path + signal + '.csv') as f:
+            for line in f.xreadlines():
+                t, _, v = line.partition(',')
+            t = datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
+            v = json.loads(v.strip())
+        return [t, v]
+
+
+    def signals(self):
+        return [f[:-4] for f in os.listdir(self._path) if f.endswith('.csv')]
+
+    def clear(self):
+        [os.remove(self._path + f) for f in os.listdir(self._path)
+         if f.endswith('.csv')]
 
 
 class Tau(object):
