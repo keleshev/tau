@@ -138,22 +138,17 @@ class Tau(object):
         if options.get('period'):
             end = datetime.now()
             start = end - timedelta(seconds=options['period'])
-            match = self._get(signals, start, end)
+            match = dict((s, self._get_period(s, start, end)) for s in signals)
             if not options.get('timestamps'):
                 match = dict((k, [i[1] for i in v]) for k, v in match.items())
         else:  # latest value
-            match = self._get(signals)
+            match = dict((s, self._get_latest(s)) for s in signals)
             if not options.get('timestamps'):
                 match = dict((k, v[1] if v else None) for k, v in match.items())
 
         if len(arguments) == 1 and not self._is_pattern(arguments[0]):
             return match[arguments[0]]
         return match
-
-    def _get(self, signals, start=None, end=None):
-        if not start:
-            return dict((s, self._get_latest(s)) for s in signals)
-        return dict((s, self._get_period(s, start, end)) for s in signals)
 
     def _get_period(self, signal, start, end):
         if signal not in self._state or self._state[signal] == []:
