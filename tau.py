@@ -11,17 +11,17 @@
 
 Usage:
   tau (-h | --help | --version)
-  tau server [--port=<port>]
+  tau server
+      [-a <host:port>]
   tau set <key=value> ...
-      [--host=<host>] [--port=<port>]
+      [-a <host:port>]
   tau get <key> ... [--timestamps] [--period=<seconds>]
-      [--host=<host>] [--port=<port>]
+      [-a <host:port>]
   tau clear
-      [--host=<host>] [--port=<port>]
+      [-a <host:port>]
 
 Options:
-  --host=<host>  [default: localhost]
-  --port=<port>  [default: 6283]
+  -a, --address <host:port>  TCP address [default: localhost:6283].
 
 """
 import socket
@@ -73,12 +73,12 @@ class TauProtocol(object):
 
 class TauServer(object):
 
-    def __init__(self, port=6283, lifetime=1):
+    def __init__(self, host='localhost', port=6283, lifetime=1):
         try:
             self.tau = Tau(lifetime)
             self.server = socket.socket()
             #self.server.bind((socket.gethostname(), port))
-            self.server.bind(('', port))
+            self.server.bind((host, port))
             self.server.listen(5)
             while True:
                 client, address = self.server.accept()
@@ -180,10 +180,11 @@ class Tau(object):
 
 if __name__ == '__main__':
     args = docopt(__doc__, version='zero')
-    tau = TauClient(host=args['--host'], port=int(args['--port']))
+    host, port = args['--address'].split(':')
+    tau = TauClient(host=host, port=int(port))
     if args['server']:
         try:
-            TauServer(port=int(args['--port']))
+            TauServer(host=host, port=int(port))
         except KeyboardInterrupt:
             pass
     elif args['set']:
