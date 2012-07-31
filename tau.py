@@ -75,7 +75,7 @@ class TauServer(object):
 
     def __init__(self, host='localhost', port=6283, cache_seconds=1):
         try:
-            self.tau = Tau(cache_seconds)
+            self.tau = Tau()#cache_seconds)
             self.server = socket.socket()
             #self.server.bind((socket.gethostname(), port))
             self.server.bind((host, port))
@@ -89,6 +89,8 @@ class TauServer(object):
                                                    **argument[1]))
                     elif command == 'set':
                         self.tau.set(argument)
+                    elif command == 'signals':
+                        protocol.send(self.tau.signals())
                     elif command == 'clear':
                         self.tau.clear()
         finally:
@@ -112,52 +114,30 @@ class TauClient(object):
             protocol.send(['get', [arg, kw]])
             return protocol.receive()
 
+    def signals(self):
+        with TauProtocol(self._host, self._port) as protocol:
+            protocol.send(['signals', None])
+            return protocol.receive()
+
     def clear(self):
         with TauProtocol(self._host, self._port) as protocol:
             protocol.send(['clear', None])
 
 
-class Tau(object):
+class MemoryBackend(object):
 
-    def __init__(self, cache_seconds=1):
-        self._cache_seconds = cache_seconds
+    def __init__(self, cache_seconds):
         self._state = {}
+        self._cache_seconds = cache_seconds
 
-    def set(self, *arg, **kw):
-        keyvalues = arg[0] if arg else kw
-        for key, value in keyvalues.items():
-            self._set(key, value)
-
-    def _set(self, key, value):
+    def set(self, key, value):
         if key not in self._state:
             self._state[key] = []
         self._state[key].append([datetime.now(), value])
         self._state = self._truncate(self._state, self._cache_seconds)
 
-    def get(self, *arguments, **options):
+    def get(self, signal, start=None, end=None):
         self._state = self._truncate(self._state, self._cache_seconds)
-        signals = self._matching_signals(*arguments)
-
-        if 'period' in options or 'start' in options and 'end' in options:
-            if 'period' in options:
-                end = datetime.now()
-                start = end - timedelta(seconds=options['period'])
-            else:
-                end = options['end']
-                start = options['start']
-            match = dict((s, self._get(s, start, end)) for s in signals)
-            if not options.get('timestamps'):
-                match = dict((k, [i[1] for i in v]) for k, v in match.items())
-        else:  # latest value
-            match = dict((s, self._get(s)) for s in signals)
-            if not options.get('timestamps'):
-                match = dict((k, v[1] if v else None) for k, v in match.items())
-
-        if len(arguments) == 1 and not self._is_pattern(arguments[0]):
-            return match[arguments[0]]
-        return match
-
-    def _get(self, signal, start=None, end=None):
         if signal not in self._state or self._state[signal] == []:
             return [] if start and end else None
         if start and end:
@@ -165,13 +145,7 @@ class Tau(object):
         return self._state[signal][-1]
 
     def signals(self):
-        return set(self._state)
-
-    def _matching_signals(self, *arg):
-        patterns = [a for a in arg if self._is_pattern(a)]
-        signals = [a for a in arg if not self._is_pattern(a)]
-        return set([s for p in patterns for s in self.signals()
-                    if fnmatchcase(s, p)] + signals)
+        return self._state.keys()
 
     @staticmethod
     def _truncate(state, period):
@@ -181,30 +155,57 @@ class Tau(object):
                           if (now - t).total_seconds() < period]
         return state
 
-    @staticmethod
-    def _is_pattern(s):
-        return '*' in s or '?' in s or '[' in s or ']' in s
-
     def clear(self):
         self._state = {}
 
 
-class CSVBackend:
+class Tau(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, backend=MemoryBackend(cache_seconds=1)):
+        self._backend = backend
 
-    def set(self, signal, value):
-        pass
+    def set(self, *arg, **kw):
+        keyvalues = arg[0] if arg else kw
+        for key, value in keyvalues.items():
+            self._backend.set(key, value)
 
-    def get(self, signal, start=None, end=None):
-        pass
+    def get(self, *arguments, **options):
+        signals = self._matching_signals(*arguments)
+
+        if 'period' in options or 'start' in options and 'end' in options:
+            if 'period' in options:
+                end = datetime.now()
+                start = end - timedelta(seconds=options['period'])
+            else:
+                end = options['end']
+                start = options['start']
+            match = dict((s, self._backend.get(s, start, end)) for s in signals)
+            if 'timestamps' not in options:
+                match = dict((k, [i[1] for i in v]) for k, v in match.items())
+        else:  # latest value
+            match = dict((s, self._backend.get(s)) for s in signals)
+            if 'timestamps' not in options:
+                match = dict((k, v[1] if v else None) for k, v in match.items())
+
+        if len(arguments) == 1 and not self._is_pattern(arguments[0]):
+            return match[arguments[0]]
+        return match
+
+    def _matching_signals(self, *arg):
+        patterns = [a for a in arg if self._is_pattern(a)]
+        signals = [a for a in arg if not self._is_pattern(a)]
+        return set([s for p in patterns for s in self._backend.signals()
+                    if fnmatchcase(s, p)] + signals)
+
+    @staticmethod
+    def _is_pattern(s):
+        return '*' in s or '?' in s or '[' in s or ']' in s
 
     def signals(self):
-        pass
+        return self._backend.signals()
 
     def clear(self):
-        pass
+        self._backend.clear()
 
 
 if __name__ == '__main__':

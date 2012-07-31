@@ -1,10 +1,10 @@
 from time import sleep
 from datetime import datetime, timedelta
-from tau import Tau
+from tau import TauClient
 
 
 def pytest_funcarg__tau(request):
-    tau = Tau()
+    tau = TauClient()
     tau.clear()
     return tau
 
@@ -91,15 +91,15 @@ def test_signals(tau):
     tau.set(a=0, b=1, foo=-1)
     tau.set(a=5, b=6, foo=-2)
     tau.set(a=8, b=9, foo=-3)
-    assert tau.signals() == set(['a', 'b', 'foo'])
+    assert set(tau.signals()) == set(['a', 'b', 'foo'])
 
 
-def test_matching_signals(tau):
-    tau.set(a=0, b=1, foo=-1)
-    tau.set(a=5, b=6, foo=-2)
-    tau.set(a=8, b=9, foo=-3)
-    assert tau._matching_signals('?') == set(['a', 'b'])
-    assert tau._matching_signals('a', '???') == set(['a', 'foo'])
+#def test_matching_signals(tau):
+#    tau.set(a=0, b=1, foo=-1)
+#    tau.set(a=5, b=6, foo=-2)
+#    tau.set(a=8, b=9, foo=-3)
+#    assert tau._matching_signals('?') == set(['a', 'b'])
+#    assert tau._matching_signals('a', '???') == set(['a', 'foo'])
 
 
 #def test_internal_get(tau):
