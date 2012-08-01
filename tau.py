@@ -27,6 +27,7 @@ Options:
 import socket
 import os
 import json
+from struct import Struct
 from fnmatch import fnmatchcase
 from datetime import datetime, timedelta
 
@@ -196,6 +197,73 @@ class CSVBackend(object):
     def clear(self):
         [os.remove(self._path + f) for f in os.listdir(self._path)
          if f.endswith('.csv')]
+
+
+class BinaryBackend(object):
+
+    def __init__(self, path='./'):
+        self._path = path
+
+    @staticmethod
+    def _to_date(ticks):
+        return datetime.min + timedelta(microseconds=ticks / 10)
+
+    @staticmethod
+    def _to_ticks(date):
+        d = date - datetime.min
+        return int(d.days * 864e9 + d.seconds * 1e7 + d.microseconds * 10)
+
+    def _to_float32(f):
+        return Struct('f').pack(f)
+
+    def set(self, key, value):
+        try:
+            value = float(value)
+        except (ValueError, TypeError):
+            return
+        with open(self._path + key + '.TIME', 'ab') as times:
+            with open(self._path + key + '.VALUE', 'ab') as values:
+                t = Struct('Q').pack(self._to_ticks(datetime.now()))
+                times.write(t)
+                v = Struct('f').pack(value)
+                values.write(v)
+
+    def get(self, signal, start=None, end=None):
+        if signal not in self.signals():
+            return [] if start and end else None
+        if start and end:
+            result = []
+            with open(self._path + signal + '.TIME') as time:
+                with open(self._path + signal + '.VALUE') as value:
+                    while True:
+                        Q = time.read(8)
+                        f = value.read(4)
+                        if len(Q) != 8 or len(f) != 4:
+                            break
+                        t = self._to_date(Struct('Q').unpack(Q)[0])
+                        if start <= t <= end:
+                            v = Struct('f').unpack(f)[0]
+                            result.append([t, v])
+            return result
+        with open(self._path + signal + '.TIME') as time:
+            with open(self._path + signal + '.VALUE') as value:
+                while True:
+                    Q = time.read(8)
+                    f = value.read(4)
+                    if len(Q) != 8 or len(f) != 4:
+                        break
+                    t = self._to_date(Struct('Q').unpack(Q)[0])
+                    v = Struct('f').unpack(f)[0]
+        return [t, v]
+
+
+    def signals(self):
+        return [f.rstrip('.VALUE') for f in os.listdir(self._path)
+                if f.endswith('.VALUE')]
+
+    def clear(self):
+        [os.remove(self._path + f) for f in os.listdir(self._path)
+         if f.endswith('.TIME') or f.endswith('.VALUE')]
 
 
 class Tau(object):
