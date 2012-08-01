@@ -1,14 +1,4 @@
-from time import sleep
-from datetime import datetime, timedelta
-from tau import Tau, TauClient, MemoryBackend, CSVBackend
-
-
-def pytest_funcarg__tau(request):
-    tau = TauClient()
-    tau = Tau(MemoryBackend(1))
-    tau = Tau(CSVBackend('./tmp/'))
-    tau.clear()
-    return tau
+from datetime import datetime
 
 
 def test_get_one_value(tau):
@@ -80,16 +70,11 @@ def test_gets_latest_value(tau):
     assert tau.get('?') == {'a': 8, 'b': 9}
 
 
-def test_when_all_values_are_discarded_get_returns_none(tau):
-    tau.set(a=0, b=1, foo=-1)
-    sleep(1)
-    assert tau.get('?') == {'a': None, 'b': None}
-
-
 # Signals
 
 
 def test_signals(tau):
+    tau.clear()
     tau.set(a=0, b=1, foo=-1)
     tau.set(a=5, b=6, foo=-2)
     tau.set(a=8, b=9, foo=-3)
@@ -121,46 +106,11 @@ def test_signals(tau):
 
 
 def test_get_period(tau):
+    tau.clear()
     tau.set(a=0, b=1, foo=-1)
     tau.set(a=5, b=6, foo=-2)
     tau.set(a=8, b=9, foo=-3)
     assert tau.get('?', period=1) == {'a': [0, 5, 8], 'b': [1, 6, 9]}
-
-
-def test_when_all_values_are_discarded_get_period_returns_empty_lists(tau):
-    tau.set(a=0, b=1, foo=-1)
-    sleep(1)
-    assert tau.get('?', period=9) == {'a': [], 'b': []}
-
-
-def test_old_values_are_discarded_get_period(tau):
-    tau.set(a=0, b=1, foo=-1)
-    sleep(1)
-    tau.set(a=5, b=6, foo=-2)
-    tau.set(a=8, b=9, foo=-3)
-    assert tau.get('?', period=9) == {'a': [5, 8], 'b': [6, 9]}
-
-
-def test_get_period_truncates(tau):
-    tau.set(a=0, b=1, foo=-1)
-    sleep(0.5)
-    tau.set(a=5, b=6, foo=-2)
-    tau.set(a=8, b=9, foo=-3)
-    assert tau.get('?', period=0.5) == {'a': [5, 8], 'b': [6, 9]}
-
-
-# Start/end
-
-def test_get_start_end(tau):
-    tau.set(a=0, b=1, foo=-1)
-    sleep(0.5)
-    tau.set(a=5, b=6, foo=-2)
-    sleep(0.5)
-    tau.set(a=8, b=9, foo=-3)
-    now = datetime.now()
-    start = now - timedelta(seconds=1)
-    end = now - timedelta(seconds=0.5)
-    assert tau.get('?', start=start, end=end) == {'a': [5], 'b': [6]}
 
 
 # Timestamps
@@ -179,6 +129,7 @@ def test_get_timestamps(tau):
 
 
 def test_get_timestamps_with_period(tau):
+    tau.clear()
     tau.set(a=2, b=3)
     tau.set(a=8, b=9)
     # {'a': [[t, 2], [t, 8]], 'b': [[t, 3], [t, 9]]}

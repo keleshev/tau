@@ -203,6 +203,9 @@ class Tau(object):
     def __init__(self, backend=MemoryBackend(cache_seconds=1)):
         self._backend = backend
 
+    def __repr__(self):
+        return 'Tau(%r)' % self._backend
+
     def set(self, *arg, **kw):
         keyvalues = arg[0] if arg else kw
         for key, value in keyvalues.items():
