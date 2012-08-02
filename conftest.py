@@ -1,10 +1,10 @@
-from tau import Tau, TauClient, MemoryBackend, CSVBackend, BinaryBackend
+from tau import Tau, MemoryBackend, CSVBackend, BinaryBackend, ServerBackend
 
 
 def pytest_generate_tests(metafunc):
     if 'tau' in metafunc.funcargnames:
-        client = TauClient()
+        client = Tau(ServerBackend())
         memory = Tau(MemoryBackend(1))
         csv = Tau(CSVBackend('./tmp/'))
         binary = Tau(BinaryBackend('./tmp/'))
-        metafunc.parametrize("tau", [memory, csv, binary])
+        metafunc.parametrize("tau", [client, memory, csv, binary])

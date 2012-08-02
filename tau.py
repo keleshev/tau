@@ -77,7 +77,7 @@ class TauServer(object):
 
     def __init__(self, host='localhost', port=6283, cache_seconds=1):
         try:
-            self.tau = Tau()  # cache_seconds)
+            self.backend = MemoryBackend(1)#Tau()  # cache_seconds)
             self.server = socket.socket()
             #self.server.bind((socket.gethostname(), port))
             self.server.bind((host, port))
@@ -85,35 +85,33 @@ class TauServer(object):
             while True:
                 client, address = self.server.accept()
                 with TauProtocol(client=client) as protocol:
-                    command, argument = protocol.receive()
+                    command, arguments = protocol.receive()
                     if command == 'get':
-                        protocol.send(self.tau.get(*argument[0],
-                                                   **argument[1]))
+                        protocol.send(self.backend.get(*arguments))
                     elif command == 'set':
-                        self.tau.set(argument)
+                        self.backend.set(*arguments)
                     elif command == 'signals':
-                        protocol.send(self.tau.signals())
+                        protocol.send(self.backend.signals())
                     elif command == 'clear':
-                        self.tau.clear()
+                        self.backend.clear()
         finally:
             #self.server.shutdown(socket.SHUT_RDWR)
             self.server.close()
 
 
-class TauClient(object):
+class ServerBackend(object):
 
     def __init__(self, host='localhost', port=6283):
         self._host = host
         self._port = port
 
-    def set(self, *arg, **kw):
-        data = arg[0] if arg else kw
+    def set(self, key, value):
         with TauProtocol(self._host, self._port) as protocol:
-            protocol.send(['set', data])
+            protocol.send(['set', [key, value]])
 
-    def get(self, *arg, **kw):
+    def get(self, signal, start=None, end=None):
         with TauProtocol(self._host, self._port) as protocol:
-            protocol.send(['get', [arg, kw]])
+            protocol.send(['get', [signal, start, end]])
             return protocol.receive()
 
     def signals(self):
@@ -307,6 +305,14 @@ class Tau(object):
 
     def clear(self):
         self._backend.clear()
+
+
+class TauClient(Tau):
+
+    """Shortcut for Tau(ServerBackend(...))."""
+
+    def __init__(self, host='localhost', port=6283):
+        self._backend = ServerBackend(host, port)
 
 
 if __name__ == '__main__':
