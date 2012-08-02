@@ -64,7 +64,7 @@ class TauProtocol(object):
         message = ''
         while True:
             message += self._client.recv(4096)
-            if message.endswith('\n'): # or message == '':
+            if message.endswith('\n'):  # or message == '':
                 break
         return json.loads(message, object_hook=decode_datetime)
 
@@ -77,7 +77,7 @@ class TauServer(object):
 
     def __init__(self, host='localhost', port=6283, cache_seconds=1):
         try:
-            self.tau = Tau()#cache_seconds)
+            self.tau = Tau()  # cache_seconds)
             self.server = socket.socket()
             #self.server.bind((socket.gethostname(), port))
             self.server.bind((host, port))
@@ -176,7 +176,7 @@ class CSVBackend(object):
         if start and end:
             result = []
             with open(self._path + signal + '.csv') as f:
-                for line in f.xreadlines():
+                for line in f:
                     t, _, v = line.partition(',')
                     t = datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
                     if start <= t <= end:
@@ -184,12 +184,11 @@ class CSVBackend(object):
                         result.append([t, v])
             return result
         with open(self._path + signal + '.csv') as f:
-            for line in f.xreadlines():
+            for line in f:
                 t, _, v = line.partition(',')
             t = datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
             v = json.loads(v.strip())
         return [t, v]
-
 
     def signals(self):
         return [f[:-4] for f in os.listdir(self._path) if f.endswith('.csv')]
@@ -204,31 +203,24 @@ class BinaryBackend(object):
     def __init__(self, path='./'):
         self._path = path
 
-    @staticmethod
-    def _to_date(ticks):
-        return datetime.min + timedelta(microseconds=ticks / 10)
-
-    @staticmethod
-    def _to_ticks(date):
-        d = date - datetime.min
-        return int(d.days * 864e9 + d.seconds * 1e7 + d.microseconds * 10)
-
-    def _to_float32(f):
-        return Struct('f').pack(f)
-
     def set(self, key, value):
+        def to_ticks(date):
+            d = date - datetime.min
+            return int(d.days * 864e9 + d.seconds * 1e7 + d.microseconds * 10)
         try:
             value = float(value)
         except (ValueError, TypeError):
             return
         with open(self._path + key + '.TIME', 'ab') as times:
             with open(self._path + key + '.VALUE', 'ab') as values:
-                t = Struct('Q').pack(self._to_ticks(datetime.now()))
+                t = Struct('Q').pack(to_ticks(datetime.now()))
                 times.write(t)
                 v = Struct('f').pack(value)
                 values.write(v)
 
     def get(self, signal, start=None, end=None):
+        def to_date(ticks):
+            return datetime.min + timedelta(microseconds=ticks / 10)
         if signal not in self.signals():
             return [] if start and end else None
         if start and end:
@@ -240,7 +232,7 @@ class BinaryBackend(object):
                         f = value.read(4)
                         if len(Q) != 8 or len(f) != 4:
                             break
-                        t = self._to_date(Struct('Q').unpack(Q)[0])
+                        t = to_date(Struct('Q').unpack(Q)[0])
                         if start <= t <= end:
                             v = Struct('f').unpack(f)[0]
                             result.append([t, v])
@@ -252,10 +244,9 @@ class BinaryBackend(object):
                     f = value.read(4)
                     if len(Q) != 8 or len(f) != 4:
                         break
-                    t = self._to_date(Struct('Q').unpack(Q)[0])
+                    t = to_date(Struct('Q').unpack(Q)[0])
                     v = Struct('f').unpack(f)[0]
         return [t, v]
-
 
     def signals(self):
         return [f.rstrip('.VALUE') for f in os.listdir(self._path)
@@ -282,19 +273,19 @@ class Tau(object):
     def get(self, *arguments, **options):
         signals = self._matching_signals(*arguments)
 
-        if 'period' in options or 'start' in options and 'end' in options:
-            if 'period' in options:
+        if options.get('period') or 'start' in options and 'end' in options:
+            if options.get('period'):
                 end = datetime.now()
                 start = end - timedelta(seconds=options['period'])
             else:
                 end = options['end']
                 start = options['start']
             match = dict((s, self._backend.get(s, start, end)) for s in signals)
-            if 'timestamps' not in options:
+            if not options.get('timestamps'):
                 match = dict((k, [i[1] for i in v]) for k, v in match.items())
         else:  # latest value
             match = dict((s, self._backend.get(s)) for s in signals)
-            if 'timestamps' not in options:
+            if not options.get('timestamps'):
                 match = dict((k, v[1] if v else None) for k, v in match.items())
 
         if len(arguments) == 1 and not self._is_pattern(arguments[0]):
