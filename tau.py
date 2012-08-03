@@ -106,9 +106,9 @@ class ServerBackend(object):
         with TauProtocol(self._host, self._port) as protocol:
             protocol.send(['set', [key, value]])
 
-    def get(self, signal, start=None, end=None):
+    def get(self, signal, start=None, end=None, limit=None):
         with TauProtocol(self._host, self._port) as protocol:
-            protocol.send(['get', [signal, start, end]])
+            protocol.send(['get', [signal, start, end, limit]])
             return protocol.receive()
 
     def signals(self):
@@ -123,7 +123,7 @@ class ServerBackend(object):
 
 class MemoryBackend(object):
 
-    def __init__(self, cache_seconds=1):
+    def __init__(self, cache_seconds=10):
         self._state = {}
         self._cache_seconds = cache_seconds
 
@@ -133,12 +133,15 @@ class MemoryBackend(object):
         self._state[key].append([datetime.now(), value])
         self._state = self._truncate(self._state, self._cache_seconds)
 
-    def get(self, signal, start=None, end=None):
+    def get(self, signal, start=None, end=None, limit=None):
+        # limit is neglected
         self._state = self._truncate(self._state, self._cache_seconds)
         if signal not in self._state or self._state[signal] == []:
             return [] if start and end else None
         if start and end:
-            return [kv for kv in self._state[signal] if start <= kv[0] <= end]
+            result = [kv for kv in self._state[signal] if start <= kv[0] <= end]
+            step = 1 if limit is None else len(result) / limit + 1
+            return result[::step]
         return self._state[signal][-1]
 
     def signals(self):
@@ -165,7 +168,7 @@ class CSVBackend(object):
         with open(self._path + key + '.csv', 'a') as f:
             f.write('%s,%s\n' % (datetime.now().isoformat(), json.dumps(value)))
 
-    def get(self, signal, start=None, end=None):
+    def get(self, signal, start=None, end=None, limit=None):
         if signal not in self.signals():
             return [] if start and end else None
         if start and end:
@@ -177,7 +180,8 @@ class CSVBackend(object):
                     if start <= t <= end:
                         v = json.loads(v.strip())
                         result.append([t, v])
-            return result
+            step = 1 if limit is None else len(result) / limit + 1
+            return result[::step]
         with open(self._path + signal + '.csv') as f:
             for line in f:
                 t, _, v = line.partition(',')
@@ -213,7 +217,7 @@ class BinaryBackend(object):
                 v = Struct('f').pack(value)
                 values.write(v)
 
-    def get(self, signal, start=None, end=None):
+    def get(self, signal, start=None, end=None, limit=None):
         def to_date(ticks):
             return datetime.min + timedelta(microseconds=ticks / 10)
         if signal not in self.signals():
@@ -231,7 +235,8 @@ class BinaryBackend(object):
                         if start <= t <= end:
                             v = Struct('f').unpack(f)[0]
                             result.append([t, v])
-            return result
+            step = 1 if limit is None else len(result) / limit + 1
+            return result[::step]
         with open(self._path + signal + '.TIME') as time:
             with open(self._path + signal + '.VALUE') as value:
                 while True:
@@ -278,7 +283,9 @@ class Tau(object):
                 end = options['end']
                 start = options['start']
             for backend in self._backends:
-                match.update(dict((s, backend.get(s, start, end)) for s in signals))
+                match.update(dict((s, backend.get(s, start, end,
+                                                  options.get('limit')))
+                                  for s in signals))
             if not options.get('timestamps'):
                 match = dict((k, [i[1] for i in v]) for k, v in match.items())
         else:  # latest value

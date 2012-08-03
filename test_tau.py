@@ -142,3 +142,14 @@ def test_get_timestamps_with_period(tau):
     assert t1 < t2
     assert type(t1) == type(t2) == datetime
     assert v1 == 3 and v2 == 9
+
+
+# Limit
+
+
+def test_limit(tau):
+    tau.clear()
+    for n in range(0, 10):
+        tau.set(n=n)
+    assert tau.get('n', period=1, limit=7) == [0, 2, 4, 6, 8]
+
