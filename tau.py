@@ -11,17 +11,14 @@
 
 Usage:
   tau (-h | --help | --version)
-  tau server
-      [-a <host:port>]
-  tau set <key=value> ...
-      [-a <host:port>]
-  tau get <key> ... [--timestamps] [--period=<seconds>]
-      [-a <host:port>]
-  tau clear
-      [-a <host:port>]
+  tau server [-b <backend>]...
+  tau set <key=value>... [-b <backend>]...
+  tau get <key>... [--period=<seconds> | --start=<date> --end=<date>]
+          [--timestamps] [-b <backend>]...
+  tau clear [-b <backend>]...
 
 Options:
-  -a, --address <host:port>  TCP address [default: localhost:6283].
+  -b <backend>
 
 """
 import socket
@@ -75,9 +72,9 @@ class TauProtocol(object):
 
 class TauServer(object):
 
-    def __init__(self, host='localhost', port=6283, cache_seconds=1):
+    def __init__(self, backend, host='localhost', port=6283, cache_seconds=1):
         try:
-            self.backend = MemoryBackend(1)#Tau()  # cache_seconds)
+            self.backend = backend
             self.server = socket.socket()
             #self.server.bind((socket.gethostname(), port))
             self.server.bind((host, port))
@@ -126,7 +123,7 @@ class ServerBackend(object):
 
 class MemoryBackend(object):
 
-    def __init__(self, cache_seconds):
+    def __init__(self, cache_seconds=1):
         self._state = {}
         self._cache_seconds = cache_seconds
 
@@ -317,17 +314,21 @@ class TauClient(Tau):
 
 if __name__ == '__main__':
     args = docopt(__doc__, version='zero')
-    host, port = args['--address'].split(':')
-    tau = TauClient(host=host, port=int(port))
+    backends = {'memory': MemoryBackend(),
+                'binary': BinaryBackend(),
+                'csv':    CSVBackend()}
+    backend = backends[args['-b'][0]]
+    tau = Tau(backend)
     if args['server']:
         try:
-            TauServer(host=host, port=int(port))
+            TauServer(backend)
         except KeyboardInterrupt:
             pass
     elif args['set']:
         tau.set(dict(kv.split('=') for kv in args['<key=value>']))
     elif args['get']:
-        print(tau.get(*args['<key>'], period=args['--period'],
+        print(tau.get(*args['<key>'],
+                      period=float(args['--period']) if args['--period'] else None,
                       timestamps=args['--timestamps']))
     elif args['clear']:
         tau.clear()
