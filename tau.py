@@ -3,7 +3,7 @@
 
        .##########
       ############
-     #    :##
+     #`   :##
           ##,
           ##,   ,
           ###__#
@@ -11,7 +11,7 @@
 
 Usage:
   tau (-h | --help | --version)
-  tau server [-b <backend>]...
+  tau server (-b <backend>)...
   tau set <key=value>... [-b <backend>]...
   tau get <key>... [--period=<seconds> | --start=<date> --end=<date>]
           [--timestamps] [-b <backend>]...
@@ -254,32 +254,36 @@ class BinaryBackend(object):
 
 class Tau(object):
 
-    def __init__(self, backend=MemoryBackend(cache_seconds=1)):
-        self._backend = backend
+    def __init__(self, *backends):
+        self._backends = backends
 
     def __repr__(self):
-        return 'Tau(%r)' % self._backend
+        return 'Tau(%r)' % self._backends
 
     def set(self, *arg, **kw):
         keyvalues = arg[0] if arg else kw
         for key, value in keyvalues.items():
-            self._backend.set(key, value)
+            for backend in self._backends:
+                backend.set(key, value)
 
     def get(self, *arguments, **options):
         signals = self._matching_signals(*arguments)
 
-        if options.get('period') or 'start' in options and 'end' in options:
+        match = {}
+        if options.get('period') or options.get('start') or options.get('end'):
             if options.get('period'):
                 end = datetime.now()
                 start = end - timedelta(seconds=options['period'])
             else:
                 end = options['end']
                 start = options['start']
-            match = dict((s, self._backend.get(s, start, end)) for s in signals)
+            for backend in self._backends:
+                match.update(dict((s, backend.get(s, start, end)) for s in signals))
             if not options.get('timestamps'):
                 match = dict((k, [i[1] for i in v]) for k, v in match.items())
         else:  # latest value
-            match = dict((s, self._backend.get(s)) for s in signals)
+            for backend in self._backends:
+                match.update(dict((s, backend.get(s)) for s in signals))
             if not options.get('timestamps'):
                 match = dict((k, v[1] if v else None) for k, v in match.items())
 
@@ -290,7 +294,7 @@ class Tau(object):
     def _matching_signals(self, *arg):
         patterns = [a for a in arg if self._is_pattern(a)]
         signals = [a for a in arg if not self._is_pattern(a)]
-        return set([s for p in patterns for s in self._backend.signals()
+        return set([s for p in patterns for s in self.signals()
                     if fnmatchcase(s, p)] + signals)
 
     @staticmethod
@@ -298,10 +302,14 @@ class Tau(object):
         return '*' in s or '?' in s or '[' in s or ']' in s
 
     def signals(self):
-        return self._backend.signals()
+        signals = set()
+        for backend in self._backends:
+            signals.update(backend.signals())
+        return sorted(signals)
 
     def clear(self):
-        self._backend.clear()
+        for backend in self._backends:
+            backend.clear()
 
 
 class TauClient(Tau):
@@ -317,11 +325,11 @@ if __name__ == '__main__':
     backends = {'memory': MemoryBackend(),
                 'binary': BinaryBackend(),
                 'csv':    CSVBackend()}
-    backend = backends[args['-b'][0]]
-    tau = Tau(backend)
+    backends = [backends[name] for name in args['-b']]
+    tau = Tau(*backends)
     if args['server']:
         try:
-            TauServer(backend)
+            TauServer(*backends)
         except KeyboardInterrupt:
             pass
     elif args['set']:
