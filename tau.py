@@ -77,6 +77,7 @@ class TauServer(object):
             self.backend = backend
             self.server = socket.socket()
             #self.server.bind((socket.gethostname(), port))
+            self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.server.bind((host, port))
             self.server.listen(5)
             while True:
@@ -134,7 +135,6 @@ class MemoryBackend(object):
         self._state = self._truncate(self._state, self._cache_seconds)
 
     def get(self, signal, start=None, end=None, limit=None):
-        # limit is neglected
         self._state = self._truncate(self._state, self._cache_seconds)
         if signal not in self._state or self._state[signal] == []:
             return [] if start and end else None
