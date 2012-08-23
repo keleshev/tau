@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from tau import Tau, MemoryBackend
+from tau import TauClient
 
 
 def pytest_funcarg__tau(request):
-    tau = Tau(MemoryBackend())
+    tau = TauClient()
     tau.clear()
     return tau
 
