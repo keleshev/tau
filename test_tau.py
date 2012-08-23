@@ -1,5 +1,13 @@
 from datetime import datetime
 
+from tau import TauClient
+
+
+def pytest_funcarg__tau(request):
+    tau = TauClient()
+    tau.clear()
+    return tau
+
 
 def test_get_one_value(tau):
     tau.set(foo=123)
@@ -110,7 +118,7 @@ def test_get_period(tau):
     tau.set(a=0, b=1, foo=-1)
     tau.set(a=5, b=6, foo=-2)
     tau.set(a=8, b=9, foo=-3)
-    assert tau.get('?', period=1) == {'a': [0, 5, 8], 'b': [1, 6, 9]}
+    assert tau.get('?', period=10) == {'a': [0, 5, 8], 'b': [1, 6, 9]}
 
 
 # Timestamps
@@ -133,7 +141,7 @@ def test_get_timestamps_with_period(tau):
     tau.set(a=2, b=3)
     tau.set(a=8, b=9)
     # {'a': [[t, 2], [t, 8]], 'b': [[t, 3], [t, 9]]}
-    d = tau.get('?', timestamps=True, period=1)
+    d = tau.get('?', timestamps=True, period=10)
     [[t1, v1], [t2, v2]] = d['a']
     assert t1 < t2
     assert type(t1) == type(t2) == datetime
@@ -151,5 +159,5 @@ def test_limit(tau):
     tau.clear()
     for n in range(0, 10):
         tau.set(n=n)
-    assert tau.get('n', period=1, limit=7) == [0, 2, 4, 6, 8]
+    assert tau.get('n', period=10, limit=7) == [0, 2, 4, 6, 8]
 

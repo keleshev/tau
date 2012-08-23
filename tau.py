@@ -324,7 +324,7 @@ class TauClient(Tau):
     """Shortcut for Tau(ServerBackend(...))."""
 
     def __init__(self, host='localhost', port=6283):
-        self._backend = ServerBackend(host, port)
+        self._backends = [ServerBackend(host, port)]
 
 
 if __name__ == '__main__':
