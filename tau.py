@@ -33,16 +33,10 @@ from docopt import docopt
 
 class TauProtocol(object):
 
-    def __init__(self, host='localhost', port=6283):
+    def __init__(self, host='localhost', port=6283, client=None):
         self._host = host
         self._port = port
-        self._client = None
-
-    @classmethod
-    def client(class_, client):
-        protocol = TauProtocol()
-        protocol._client = client
-        return protocol
+        self._client = client
 
     def __enter__(self):
         if not self._client:
@@ -88,7 +82,7 @@ class TauServer(object):
             self.server.listen(5)
             while True:
                 client, address = self.server.accept()
-                with TauProtocol.client(client) as protocol:
+                with TauProtocol(client=client) as protocol:
                     command, arguments = protocol.receive()
                     if command == 'get':
                         protocol.send(self.backend.get(*arguments))
@@ -269,7 +263,7 @@ class Tau(object):
         self._backends = backends
 
     def __repr__(self):
-        return 'Tau(%r)' % self._backends
+        return 'Tau(*%r)' % self._backends
 
     def set(self, *arg, **kw):
         keyvalues = arg[0] if arg else kw
