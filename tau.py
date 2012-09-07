@@ -301,10 +301,16 @@ class GlueBackend(object):
 
     def get(self, signal, start=None, end=None, limit=None):
         for b in self._backends:
+            got = None
             try:
-                return b.get(signal, start, end, limit)
+                got = b.get(signal, start, end, limit)
+                if got == []:
+                    continue
+                return got
             except BackendError:
                 pass
+        if got is not None:
+            return got
         raise BackendError('cannot get %r' % signal)
 
     def signals(self):

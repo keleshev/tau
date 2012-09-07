@@ -126,3 +126,12 @@ def test_glue_failure():
     glue.set('key', 1)
     with raises(BackendError):
         glue.set('key', 'I')
+
+
+def test_glue_tries_to_get_from_other_backends_if_gets_empty_list():
+    mem = MemoryBackend(9)
+    csv = CSVBackend()
+    glue = GlueBackend(mem, csv)
+    glue.set('key', 9)
+    mem.clear()  # say, machine was rebooted, but csv files are still there
+    assert glue.get('key')[0][1] == 9
