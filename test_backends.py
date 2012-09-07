@@ -37,7 +37,7 @@ def test_backend_clear(backend):
 @backends(*all)
 def test_backend_get(backend):
     backend.set('foo', 8)
-    res = backend.get('foo')
+    [res] = backend.get('foo')
     assert res[1] == 8
     assert type(res[0]) == datetime
 
@@ -45,7 +45,7 @@ def test_backend_get(backend):
 @backends(MemoryBackend, CSVBackend)
 def test_backend_get_compound(backend):
     backend.set('foo', {'this': 1, 'that': [2, 3]})
-    res = backend.get('foo')
+    [res] = backend.get('foo')
     assert res[1] == {'this': 1, 'that': [2, 3]}
     assert type(res[0]) == datetime
 

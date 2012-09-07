@@ -150,12 +150,12 @@ class MemoryBackend(object):
     def get(self, signal, start=None, end=None, limit=None):
         self._state = self._truncate(self._state, self._cache_seconds)
         if signal not in self._state or self._state[signal] == []:
-            return [] if start and end else None
+            return []
         if start and end:
             result = [kv for kv in self._state[signal] if start <= kv[0] <= end]
             step = 1 if limit is None else len(result) / limit + 1
             return result[::step]
-        return self._state[signal][-1]
+        return [self._state[signal][-1]]
 
     def signals(self):
         return self._state.keys()
@@ -185,7 +185,7 @@ class CSVBackend(object):
 
     def get(self, signal, start=None, end=None, limit=None):
         if signal not in self.signals():
-            return [] if start and end else None
+            return []
         if start and end:
             result = []
             with open(self._path + signal + '.csv') as f:
@@ -202,7 +202,7 @@ class CSVBackend(object):
                 t, _, v = line.partition(',')
             t = datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
             v = json.loads(v.strip())
-        return [t, v]
+        return [[t, v]]
 
     def signals(self):
         return [f[:-4] for f in os.listdir(self._path) if f.endswith('.csv')]
@@ -238,7 +238,7 @@ class BinaryBackend(object):
         def to_date(ticks):
             return datetime.min + timedelta(microseconds=ticks / 10)
         if signal not in self.signals():
-            return [] if start and end else None
+            return []
         if start and end:
             result = []
             with open(self._path + signal + '.TIME') as time:
@@ -263,7 +263,7 @@ class BinaryBackend(object):
                         break
                     t = to_date(Struct('Q').unpack(Q)[0])
                     v = Struct('f').unpack(f)[0]
-        return [t, v]
+        return [[t, v]]
 
     def signals(self):
         return [f.rstrip('.VALUE') for f in os.listdir(self._path)
@@ -335,9 +335,11 @@ class Tau(object):
             if not options.get('timestamps'):
                 match = dict((k, [i[1] for i in v]) for k, v in match.items())
         else:  # latest value
-            match = dict((s, self._backend.get(s)) for s in signals)
+            d = lambda l: l[0] if l else None
+            match = dict((s, d(self._backend.get(s))) for s in signals)
             if not options.get('timestamps'):
-                match = dict((k, v[1] if v else None) for k, v in match.items())
+                match = dict((k, v[1] if v else None)
+                             for k, v in match.items())
 
         if len(arguments) == 1 and not self._is_pattern(arguments[0]):
             return match[arguments[0]]
