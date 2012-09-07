@@ -372,12 +372,13 @@ if __name__ == '__main__':
     args = docopt(__doc__, version='zero')
     backends = {'memory': MemoryBackend(),
                 'binary': BinaryBackend(),
-                'csv':    CSVBackend()}
-    backends = [backends[name] for name in args['-b']]
-    tau = Tau(*backends)
+                'csv':    CSVBackend(),
+                'server': ServerBackend()}
+    backend = GlueBackend(*[backends[name] for name in args['-b']])
+    tau = Tau(GlueBackend(backend))
     if args['server']:
         try:
-            TauServer(*backends)
+            TauServer(backend)
         except KeyboardInterrupt:
             pass
     elif args['set']:
