@@ -152,6 +152,10 @@ class MemoryBackend(object):
         if signal not in self._state or self._state[signal] == []:
             return [] if start and end else None
         if start and end:
+            now = datetime.now()
+            period = now - timedelta(seconds=self._cache_seconds)
+            if not period < start < end < now:
+                raise BackendError('do not have data from `start` to `end`')
             result = [kv for kv in self._state[signal] if start <= kv[0] <= end]
             step = 1 if limit is None else len(result) / limit + 1
             return result[::step]

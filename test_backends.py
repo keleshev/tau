@@ -1,15 +1,17 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
-import pytest
+from pytest import raises, mark
 
 from tau import MemoryBackend, BinaryBackend, CSVBackend, GlueBackend
+from tau import BackendError
+
 
 glue_backend = lambda: GlueBackend(MemoryBackend(), CSVBackend())
 all = (MemoryBackend, BinaryBackend, CSVBackend, glue_backend)
 
 
 def backends(*backends):
-    return pytest.mark.parametrize(('backend',), [(b(),) for b in backends])
+    return mark.parametrize(('backend',), [(b(),) for b in backends])
 
 
 def teardown_function(function):
@@ -67,3 +69,17 @@ def test_backend_get_limit(backend):
     assert len(res) == 10
     res = backend.get('foo', datetime.min, datetime.now(), limit=4)
     assert len(res) == 4
+
+
+def test_backend_error():
+    backend = MemoryBackend(1)  # seconds
+    backend.set('key', 'value')
+    [[time, value]] = backend.get('key',
+            start=datetime.now() - timedelta(seconds=0.5),
+            end=datetime.now())
+    assert type(time) is datetime
+    assert value == 'value'
+    with raises(BackendError):
+        print(backend.get('key',
+            start=datetime.now() - timedelta(seconds=1.5),
+            end=datetime.now()))
