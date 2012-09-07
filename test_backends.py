@@ -19,6 +19,15 @@ def teardown_function(function):
         backend().clear()
 
 
+def now():
+    return datetime.now()
+
+
+def seconds(n):
+    return timedelta(seconds=n)
+
+
+
 @backends(*all)
 def test_backend_signals(backend):
     backend.set('foo', 9)
@@ -57,7 +66,7 @@ def test_backend_get_start_end(backend):
     backend.set('foo', 1)
     backend.set('foo', 2)
     backend.set('foo', 3)
-    one, two, three = backend.get('foo', datetime.min, datetime.now())
+    one, two, three = backend.get('foo', now() - seconds(1), now())
     assert (one[1], two[1], three[1] == 1, 2, 3)
 
 
@@ -65,9 +74,9 @@ def test_backend_get_start_end(backend):
 def test_backend_get_limit(backend):
     for n in range(10):
         backend.set('foo', n)
-    res = backend.get('foo', datetime.min, datetime.now())
+    res = backend.get('foo', now() - seconds(1), now())
     assert len(res) == 10
-    res = backend.get('foo', datetime.min, datetime.now(), limit=4)
+    res = backend.get('foo', now() - seconds(1), now(), limit=4)
     assert len(res) == 4
 
 

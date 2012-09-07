@@ -89,7 +89,10 @@ class TauServer(object):
                 with TauProtocol(client=client) as protocol:
                     command, arguments = protocol.receive()
                     if command == 'get':
-                        protocol.send(self.backend.get(*arguments))
+                        try:
+                            protocol.send(self.backend.get(*arguments))
+                        except BackendError:
+                            protocol.send([])  # maybe better ['error', 'msg]
                     elif command == 'set':
                         self.backend.set(*arguments)
                     elif command == 'signals':
