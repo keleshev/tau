@@ -289,8 +289,15 @@ class GlueBackend(object):
         self._backends = backends
 
     def set(self, key, value):
+        at_least_one = False
         for b in self._backends:
-            b.set(key, value)
+            try:
+                b.set(key, value)
+                at_least_one = True
+            except BackendError:
+                pass
+        if not at_least_one:
+            raise BackendError('no backend was able handle %r' % value)
 
     def get(self, signal, start=None, end=None, limit=None):
         for b in self._backends:

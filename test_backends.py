@@ -100,3 +100,29 @@ def test_binary_backend_errors():
     backend.set('key', '1')
     with raises(BackendError):
         backend.set('key', 'I')
+
+
+def test_glue_backend_dispatch():
+    mem = MemoryBackend(1)
+    bin = BinaryBackend()
+    csv = CSVBackend()
+    glue = GlueBackend(mem, bin, csv)
+    glue.set('key', 1)
+    print glue.get('key')
+    assert glue.get('key')[0][1] == 1
+    assert mem.get('key')[0][1] == 1
+    assert bin.get('key')[0][1] == 1
+    assert csv.get('key')[0][1] == 1
+    glue.clear()
+    glue.set('key', 'value')
+    assert glue.get('key')[0][1] == 'value'
+    assert mem.get('key')[0][1] == 'value'
+    assert bin.get('key') == []
+    assert csv.get('key')[0][1] == 'value'
+
+
+def test_glue_failure():
+    glue = GlueBackend(BinaryBackend())
+    glue.set('key', 1)
+    with raises(BackendError):
+        glue.set('key', 'I')
