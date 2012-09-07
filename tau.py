@@ -233,7 +233,7 @@ class BinaryBackend(object):
         try:
             value = float(value)
         except (ValueError, TypeError):
-            return
+            raise BackendError('cannot convert %s to float' % value)
         with open(self._path + key + '.TIME', 'ab') as times:
             with open(self._path + key + '.VALUE', 'ab') as values:
                 t = Struct('Q').pack(to_ticks(datetime.now()))

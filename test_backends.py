@@ -80,7 +80,7 @@ def test_backend_get_limit(backend):
     assert len(res) == 4
 
 
-def test_backend_error():
+def test_memory_backend_errors():
     backend = MemoryBackend(1)  # seconds
     backend.set('key', 'value')
     [[time, value]] = backend.get('key',
@@ -92,3 +92,11 @@ def test_backend_error():
         print(backend.get('key',
             start=datetime.now() - timedelta(seconds=1.5),
             end=datetime.now()))
+
+
+def test_binary_backend_errors():
+    backend = BinaryBackend()
+    backend.set('key', 1)
+    backend.set('key', '1')
+    with raises(BackendError):
+        backend.set('key', 'I')
