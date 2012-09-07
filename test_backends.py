@@ -19,27 +19,29 @@ def teardown_function(function):
         backend().clear()
 
 
-def now():
-    return datetime.now()
-
-
 def seconds(n):
     return timedelta(seconds=n)
 
 
+def now():
+    return datetime.now()
+
+
+t = now()  # some timestamp; dosen't matter
+
 
 @backends(*all)
 def test_backend_signals(backend):
-    backend.set('foo', 9)
+    backend.set('foo', t, 9)
     assert backend.signals() == ['foo']
-    backend.set('bar', 9)
+    backend.set('bar', t, 9)
     assert set(backend.signals()) == set(['foo', 'bar'])
 
 
 @backends(*all)
 def test_backend_clear(backend):
-    backend.set('eggs', 9)
-    backend.set('spam', 9)
+    backend.set('eggs', t, 9)
+    backend.set('spam', t, 9)
     assert set(backend.signals()) == set(['eggs', 'spam'])
     backend.clear()
     assert set(backend.signals()) == set()
@@ -47,7 +49,7 @@ def test_backend_clear(backend):
 
 @backends(*all)
 def test_backend_get(backend):
-    backend.set('foo', 8)
+    backend.set('foo', t, 8)
     [res] = backend.get('foo')
     assert res[1] == 8
     assert type(res[0]) == datetime
@@ -55,7 +57,7 @@ def test_backend_get(backend):
 
 @backends(MemoryBackend, CSVBackend)
 def test_backend_get_compound(backend):
-    backend.set('foo', {'this': 1, 'that': [2, 3]})
+    backend.set('foo', t, {'this': 1, 'that': [2, 3]})
     [res] = backend.get('foo')
     assert res[1] == {'this': 1, 'that': [2, 3]}
     assert type(res[0]) == datetime
@@ -63,9 +65,9 @@ def test_backend_get_compound(backend):
 
 @backends(*all)
 def test_backend_get_start_end(backend):
-    backend.set('foo', 1)
-    backend.set('foo', 2)
-    backend.set('foo', 3)
+    backend.set('foo', t, 1)
+    backend.set('foo', t, 2)
+    backend.set('foo', t, 3)
     one, two, three = backend.get('foo', now() - seconds(1), now())
     assert (one[1], two[1], three[1] == 1, 2, 3)
 
@@ -73,7 +75,7 @@ def test_backend_get_start_end(backend):
 @backends(*all)
 def test_backend_get_limit(backend):
     for n in range(10):
-        backend.set('foo', n)
+        backend.set('foo', t, n)
     res = backend.get('foo', now() - seconds(1), now())
     assert len(res) == 10
     res = backend.get('foo', now() - seconds(1), now(), limit=4)
@@ -82,7 +84,7 @@ def test_backend_get_limit(backend):
 
 def test_memory_backend_errors():
     backend = MemoryBackend(1)  # seconds
-    backend.set('key', 'value')
+    backend.set('key', t, 'value')
     [[time, value]] = backend.get('key',
             start=datetime.now() - timedelta(seconds=0.5),
             end=datetime.now())
@@ -96,10 +98,10 @@ def test_memory_backend_errors():
 
 def test_binary_backend_errors():
     backend = BinaryBackend()
-    backend.set('key', 1)
-    backend.set('key', '1')
+    backend.set('key', t, 1)
+    backend.set('key', t, '1')
     with raises(BackendError):
-        backend.set('key', 'I')
+        backend.set('key', t, 'I')
 
 
 def test_glue_backend_dispatch():
@@ -107,31 +109,27 @@ def test_glue_backend_dispatch():
     bin = BinaryBackend()
     csv = CSVBackend()
     glue = GlueBackend(mem, bin, csv)
-    glue.set('key', 1)
-    print glue.get('key')
+    glue.set('key', t, 1)
     assert glue.get('key')[0][1] == 1
-    assert mem.get('key')[0][1] == 1
-    assert bin.get('key')[0][1] == 1
-    assert csv.get('key')[0][1] == 1
+    assert glue.get('key') == mem.get('key') == csv.get('key')
     glue.clear()
-    glue.set('key', 'value')
+    glue.set('key', t, 'value')
     assert glue.get('key')[0][1] == 'value'
-    assert mem.get('key')[0][1] == 'value'
+    assert glue.get('key') == mem.get('key') == csv.get('key')
     assert bin.get('key') == []
-    assert csv.get('key')[0][1] == 'value'
 
 
 def test_glue_failure():
     glue = GlueBackend(BinaryBackend())
-    glue.set('key', 1)
+    glue.set('key', t, 1)
     with raises(BackendError):
-        glue.set('key', 'I')
+        glue.set('key', t, 'I')
 
 
 def test_glue_tries_to_get_from_other_backends_if_gets_empty_list():
     mem = MemoryBackend(9)
     csv = CSVBackend()
     glue = GlueBackend(mem, csv)
-    glue.set('key', 9)
+    glue.set('key', t, 9)
     mem.clear()  # say, machine was rebooted, but csv files are still there
     assert glue.get('key')[0][1] == 9

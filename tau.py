@@ -117,9 +117,9 @@ class ServerBackend(object):
         self._host = host
         self._port = port
 
-    def set(self, key, value):
+    def set(self, key, time, value):
         with TauProtocol(self._host, self._port) as protocol:
-            protocol.send(['set', [key, value]])
+            protocol.send(['set', [key, time, value]])
 
     def get(self, signal, start=None, end=None, limit=None):
         with TauProtocol(self._host, self._port) as protocol:
@@ -144,10 +144,10 @@ class MemoryBackend(object):
         self._state = {}
         self._cache_seconds = cache_seconds
 
-    def set(self, key, value):
+    def set(self, key, time, value):
         if key not in self._state:
             self._state[key] = []
-        self._state[key].append([datetime.now(), value])
+        self._state[key].append([time, value])
         self._state = self._truncate(self._state, self._cache_seconds)
 
     def get(self, signal, start=None, end=None, limit=None):
@@ -186,9 +186,9 @@ class CSVBackend(object):
     def __init__(self, path='./'):
         self._path = path
 
-    def set(self, key, value):
+    def set(self, key, time, value):
         with open(self._path + key + '.csv', 'a') as f:
-            f.write('%s,%s\n' % (datetime.now().isoformat(), json.dumps(value)))
+            f.write('%s,%s\n' % (time.isoformat(), json.dumps(value)))
 
     def get(self, signal, start=None, end=None, limit=None):
         if signal not in self.signals():
@@ -226,7 +226,7 @@ class BinaryBackend(object):
     def __init__(self, path='./'):
         self._path = path
 
-    def set(self, key, value):
+    def set(self, key, time, value):
         def to_ticks(date):
             d = date - datetime.min
             return int(d.days * 864e9 + d.seconds * 1e7 + d.microseconds * 10)
@@ -236,7 +236,7 @@ class BinaryBackend(object):
             raise BackendError('cannot convert %s to float' % value)
         with open(self._path + key + '.TIME', 'ab') as times:
             with open(self._path + key + '.VALUE', 'ab') as values:
-                t = Struct('Q').pack(to_ticks(datetime.now()))
+                t = Struct('Q').pack(to_ticks(time))
                 times.write(t)
                 v = Struct('f').pack(value)
                 values.write(v)
@@ -288,11 +288,11 @@ class GlueBackend(object):
     def __init__(self, *backends):
         self._backends = backends
 
-    def set(self, key, value):
+    def set(self, key, time, value):
         at_least_one = False
         for b in self._backends:
             try:
-                b.set(key, value)
+                b.set(key, time, value)
                 at_least_one = True
             except BackendError:
                 pass
@@ -335,9 +335,10 @@ class Tau(object):
         return 'Tau(%r)' % self._backend
 
     def set(self, *arg, **kw):
+        now = datetime.now()
         keyvalues = arg[0] if arg else kw
         for key, value in keyvalues.items():
-            self._backend.set(key, value)
+            self._backend.set(key, now, value)
 
     def get(self, *arguments, **options):
         signals = self._matching_signals(*arguments)
