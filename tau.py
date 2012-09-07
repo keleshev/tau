@@ -15,6 +15,7 @@ Usage:
   tau set <key=value>... [-b <backend>]...
   tau get <key>... [--period=<seconds> | --start=<date> --end=<date>]
           [--timestamps] [-b <backend>]...
+  tau signals [-b <backend>]...
   tau clear [-b <backend>]...
 
 Options:
@@ -411,5 +412,7 @@ if __name__ == '__main__':
                       period=float(args['--period'])
                                    if args['--period'] else None,
                       timestamps=args['--timestamps']))
+    elif args['signals']:
+        print(tau.signals())
     elif args['clear']:
         tau.clear()
