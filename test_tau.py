@@ -24,7 +24,7 @@ def test_clear(tau):
     tau.set(foo=123)
     assert tau.get('foo') == 123
     tau.clear()
-    assert tau.get('foo') == None
+    assert tau.get('foo') is None
     tau.set(foo=123, bar=True)
     assert tau.get('foo', 'bar') == {'foo': 123, 'bar': True}
     tau.clear()

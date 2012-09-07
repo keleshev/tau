@@ -101,6 +101,11 @@ class TauServer(object):
             self.server.close()
 
 
+class BackendError(Exception):
+
+    """Error in case a backend cannot execute a query."""
+
+
 class ServerBackend(object):
 
     """Backend that just delegates all queries to a remote server."""
@@ -269,26 +274,54 @@ class BinaryBackend(object):
          if f.endswith('.TIME') or f.endswith('.VALUE')]
 
 
-class Tau(object):
+class GlueBackend(object):
 
-    """High-level API that delegates the real work to a backend."""
+    """Backend that glues together other backends."""
 
     def __init__(self, *backends):
         self._backends = backends
 
+    def set(self, key, value):
+        for b in self._backends:
+            b.set(key, value)
+
+    def get(self, signal, start=None, end=None, limit=None):
+        for b in self._backends:
+            try:
+                return b.get(signal, start, end, limit)
+            except BackendError:
+                pass
+        raise BackendError('cannot get %r' % signal)
+
+    def signals(self):
+        signals = set()
+        for backend in self._backends:
+            signals.update(backend.signals())
+        return sorted(signals)
+
+    def clear(self):
+        for b in self._backends:
+            b.clear()
+
+
+class Tau(object):
+
+    """High-level API that delegates the real work to a backend."""
+
+    def __init__(self, backend):
+        self._backend = backend
+
     def __repr__(self):
-        return 'Tau(*%r)' % self._backends
+        return 'Tau(%r)' % self._backend
 
     def set(self, *arg, **kw):
         keyvalues = arg[0] if arg else kw
         for key, value in keyvalues.items():
-            for backend in self._backends:
-                backend.set(key, value)
+            self._backend.set(key, value)
 
     def get(self, *arguments, **options):
         signals = self._matching_signals(*arguments)
 
-        match = {}
         if options.get('period') or options.get('start') or options.get('end'):
             if options.get('period'):
                 end = datetime.now()
@@ -296,15 +329,13 @@ class Tau(object):
             else:
                 end = options['end']
                 start = options['start']
-            for backend in self._backends:
-                match.update(dict((s, backend.get(s, start, end,
-                                                  options.get('limit')))
-                                  for s in signals))
+            match = dict((s, self._backend.get(s, start, end,
+                                               options.get('limit')))
+                              for s in signals)
             if not options.get('timestamps'):
                 match = dict((k, [i[1] for i in v]) for k, v in match.items())
         else:  # latest value
-            for backend in self._backends:
-                match.update(dict((s, backend.get(s)) for s in signals))
+            match = dict((s, self._backend.get(s)) for s in signals)
             if not options.get('timestamps'):
                 match = dict((k, v[1] if v else None) for k, v in match.items())
 
@@ -323,14 +354,10 @@ class Tau(object):
         return '*' in s or '?' in s or '[' in s or ']' in s
 
     def signals(self):
-        signals = set()
-        for backend in self._backends:
-            signals.update(backend.signals())
-        return sorted(signals)
+        return self._backend.signals()
 
     def clear(self):
-        for backend in self._backends:
-            backend.clear()
+        return self._backend.clear()
 
 
 class TauClient(Tau):
@@ -338,7 +365,7 @@ class TauClient(Tau):
     """Shortcut for Tau(ServerBackend(...))."""
 
     def __init__(self, host='localhost', port=6283):
-        self._backends = [ServerBackend(host, port)]
+        self._backend = ServerBackend(host, port)
 
 
 if __name__ == '__main__':

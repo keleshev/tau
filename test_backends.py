@@ -2,14 +2,14 @@ from datetime import datetime
 
 import pytest
 
-from tau import MemoryBackend, BinaryBackend, CSVBackend
+from tau import MemoryBackend, BinaryBackend, CSVBackend, GlueBackend
+
+glue_backend = lambda: GlueBackend(MemoryBackend(), CSVBackend())
+all = (MemoryBackend, BinaryBackend, CSVBackend, glue_backend)
 
 
-all = (MemoryBackend, BinaryBackend, CSVBackend)
-
-
-def backends(*args):
-    return pytest.mark.parametrize(('backend',), [(b(),) for b in args])
+def backends(*backends):
+    return pytest.mark.parametrize(('backend',), [(b(),) for b in backends])
 
 
 def teardown_function(function):
