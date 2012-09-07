@@ -33,6 +33,8 @@ from docopt import docopt
 
 class TauProtocol(object):
 
+    """JSON-based protocol for communication over TCP."""
+
     def __init__(self, host='localhost', port=6283, client=None):
         self._host = host
         self._port = port
@@ -72,6 +74,8 @@ class TauProtocol(object):
 
 class TauServer(object):
 
+    """Server that runs queries on a given backend."""
+
     def __init__(self, backend, host='localhost', port=6283, cache_seconds=1):
         try:
             self.backend = backend
@@ -99,6 +103,8 @@ class TauServer(object):
 
 class ServerBackend(object):
 
+    """Backend that just delegates all queries to a remote server."""
+
     def __init__(self, host='localhost', port=6283):
         self._host = host
         self._port = port
@@ -123,6 +129,8 @@ class ServerBackend(object):
 
 
 class MemoryBackend(object):
+
+    """In-memory backend that could be used as a cache for another backend."""
 
     def __init__(self, cache_seconds=10):
         self._state = {}
@@ -161,6 +169,8 @@ class MemoryBackend(object):
 
 class CSVBackend(object):
 
+    """JSON-based file-oriented CSV backend."""
+
     def __init__(self, path='./'):
         self._path = path
 
@@ -198,6 +208,8 @@ class CSVBackend(object):
 
 
 class BinaryBackend(object):
+
+    """Float32 binary, file-oriented backend."""
 
     def __init__(self, path='./'):
         self._path = path
@@ -258,6 +270,8 @@ class BinaryBackend(object):
 
 
 class Tau(object):
+
+    """High-level API that delegates the real work to a backend."""
 
     def __init__(self, *backends):
         self._backends = backends
@@ -343,7 +357,8 @@ if __name__ == '__main__':
         tau.set(dict(kv.split('=') for kv in args['<key=value>']))
     elif args['get']:
         print(tau.get(*args['<key>'],
-                      period=float(args['--period']) if args['--period'] else None,
+                      period=float(args['--period'])
+                                   if args['--period'] else None,
                       timestamps=args['--timestamps']))
     elif args['clear']:
         tau.clear()
