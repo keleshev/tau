@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 
 from pytest import raises, mark
@@ -133,3 +134,9 @@ def test_glue_tries_to_get_from_other_backends_if_gets_empty_list():
     glue.set('key', t, 9)
     mem.clear()  # say, machine was rebooted, but csv files are still there
     assert glue.get('key')[0][1] == 9
+
+
+@backends(CSVBackend, BinaryBackend)
+def test_file_backends_dont_fail_if_file_is_empty(backend):
+    os.system('touch hai.csv hai.TIME hai.VALUE')
+    assert backend.get('hai') == []

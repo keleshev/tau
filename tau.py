@@ -207,12 +207,16 @@ class CSVBackend(object):
                         result.append([t, v])
             step = 1 if limit is None else len(result) / limit + 1
             return result[::step]
+        ok = False
         with open(self._path + signal + '.csv') as f:
             for line in f:
                 t, _, v = line.partition(',')
-            t = datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
-            v = json.loads(v.strip())
-        return [[t, v]]
+                ok = True
+            if ok:
+                t = datetime.strptime(t, '%Y-%m-%dT%H:%M:%S.%f')
+                v = json.loads(v.strip())
+                return [[t, v]]
+        return []
 
     def signals(self):
         return [f[:-4] for f in os.listdir(self._path) if f.endswith('.csv')]
@@ -264,6 +268,7 @@ class BinaryBackend(object):
                             result.append([t, v])
             step = 1 if limit is None else len(result) / limit + 1
             return result[::step]
+        ok = False
         with open(self._path + signal + '.TIME') as time:
             with open(self._path + signal + '.VALUE') as value:
                 while True:
@@ -273,7 +278,10 @@ class BinaryBackend(object):
                         break
                     t = to_date(Struct('Q').unpack(Q)[0])
                     v = Struct('f').unpack(f)[0]
-        return [[t, v]]
+                    ok = True
+                if ok:
+                    return [[t, v]]
+        return []
 
     def signals(self):
         return [f.rstrip('.VALUE') for f in os.listdir(self._path)
@@ -410,9 +418,11 @@ if __name__ == '__main__':
     elif args['set']:
         tau.set(dict(kv.split('=') for kv in args['<key=value>']))
     elif args['get']:
+        f = lambda f: float(f) if f else None
         print(tau.get(*args['<key>'],
-                      period=float(args['--period'])
-                                   if args['--period'] else None,
+                      period=f(args['--period']),
+                      start=f(args['--start']),
+                      end=f(args['--end']),
                       timestamps=args['--timestamps']))
     elif args['signals']:
         print(tau.signals())
