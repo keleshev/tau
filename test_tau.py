@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from tau import TauClient
+from tau import TauClient, TauProtocol
 
 
 def pytest_funcarg__tau(request):
@@ -95,3 +95,10 @@ def test_limit(tau):
     for n in range(0, 10):
         tau.set(n=n)
     assert tau.get('n', period=1, limit=7) == [0, 2, 4, 6, 8]
+
+
+def test_server_failure_handling(tau):
+    tau.set({'hai': 'bye'})
+    with TauProtocol() as protocol:
+        protocol.send('die')
+    assert tau.get('hai') == 'bye'

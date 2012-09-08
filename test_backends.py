@@ -69,7 +69,7 @@ def test_backend_get_start_end(backend):
     backend.set('foo', t, 2)
     backend.set('foo', t, 3)
     one, two, three = backend.get('foo', now() - seconds(1), now())
-    assert (one[1], two[1], three[1] == 1, 2, 3)
+    assert (one[1], two[1], three[1]) == (1, 2, 3)
 
 
 @backends(*all)

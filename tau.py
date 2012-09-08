@@ -24,6 +24,8 @@ Options:
 """
 import socket
 import os
+import sys
+import traceback
 import json
 from struct import Struct
 from fnmatch import fnmatchcase
@@ -78,14 +80,14 @@ class TauServer(object):
     """Server that runs queries on a given backend."""
 
     def __init__(self, backend, host='localhost', port=6283, cache_seconds=1):
-        try:
-            self.backend = backend
-            self.server = socket.socket()
-            #self.server.bind((socket.gethostname(), port))
-            self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server.bind((host, port))
-            self.server.listen(5)
-            while True:
+        self.backend = backend
+        self.server = socket.socket()
+        #self.server.bind((socket.gethostname(), port))
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server.bind((host, port))
+        self.server.listen(5)
+        while True:
+            try:
                 client, address = self.server.accept()
                 with TauProtocol(client=client) as protocol:
                     command, arguments = protocol.receive()
@@ -100,9 +102,9 @@ class TauServer(object):
                         protocol.send(self.backend.signals())
                     elif command == 'clear':
                         self.backend.clear()
-        finally:
-            #self.server.shutdown(socket.SHUT_RDWR)
-            self.server.close()
+            except Exception:
+                traceback.print_exc(file=sys.stderr)
+        self.server.close()
 
 
 class BackendError(Exception):
